@@ -28,6 +28,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,6 +50,8 @@ const (
 	Llongfile                     // full file name and line number: /a/b/c/d.go:23
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
 	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
+	Llevel						  // Level
+	Lcoloredlevel				  // Colored Levels
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
 
@@ -119,7 +122,8 @@ func itoa(buf *[]byte, i int, wid int) {
 //   * l.prefix (if it's not blank),
 //   * date and/or time (if corresponding flags are provided),
 //   * file and line number (if corresponding flags are provided).
-func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+//   * level
+func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int, level string) {
 	*buf = append(*buf, l.prefix...)
 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
 		if l.flag&LUTC != 0 {
@@ -164,6 +168,13 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 		itoa(buf, line, -1)
 		*buf = append(*buf, ": "...)
 	}
+
+	if l.flag&(Llevel|Lcoloredlevel) != 0 {
+
+		*buf = append(*buf, fmt.Sprintf("%5.5s: ", strings.ToUpper(level))...)
+
+	}
+
 }
 
 // Output writes the output for a logging event. The string s contains
@@ -201,7 +212,7 @@ func (l *Logger) Output(level string, s string) error {
 		l.mu.Lock()
 	}
 	l.buf = l.buf[:0]
-	l.formatHeader(&l.buf, now, file, line)
+	l.formatHeader(&l.buf, now, file, line, level)
 	l.buf = append(l.buf, s...)
 	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
